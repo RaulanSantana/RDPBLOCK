@@ -1,6 +1,9 @@
 # Mensagem de aviso
 Write-Host "Script de monitoramento de tentativas de login via RDP iniciado. Pressione Ctrl + C para encerrar."
 
+# Caminho para o arquivo de log
+$logFilePath = "C:\Caminho\Para\Seu\Log\log.txt"
+
 # Construir a consulta XML
 $queryXML = @"
 <QueryList>
@@ -12,6 +15,9 @@ $queryXML = @"
 
 # Expressão regular para extrair o endereço IP
 $ipPattern = '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+
+# Array para rastrear IPs bloqueados
+$ipsBloqueados = @()
 
 # Loop infinito para monitorar eventos de log de segurança
 while ($true) {
@@ -29,7 +35,20 @@ while ($true) {
         # Exibir os endereços IP capturados, se disponíveis
         foreach ($match in $ipMatches) {
             $ip = $match.Value
-            Write-Host "Endereço IP: $ip"
+            if (-not $ipsBloqueados.Contains($ip)) {
+                # Bloquear o IP no Firewall do Windows
+                netsh advfirewall firewall add rule name="Bloqueio IP RDP" dir=in action=block enable=yes remoteip=$ip
+
+                # Adicionar o IP à lista de IPs bloqueados
+                $ipsBloqueados += $ip
+
+                # Exibir mensagem na tela
+                Write-Host "Endereço IP bloqueado: $ip"
+
+                # Registrar o evento no arquivo de log
+                $logEntry = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Endereço IP bloqueado: $ip"
+                $logEntry | Out-File -FilePath $logFilePath -Append
+            }
         }
     }
 

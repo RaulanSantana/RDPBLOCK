@@ -1,0 +1,38 @@
+# Mensagem de aviso
+Write-Host "Script de monitoramento de tentativas de login via RDP iniciado. Pressione Ctrl + C para encerrar."
+
+# Construir a consulta XML
+$queryXML = @"
+<QueryList>
+    <Query Id="0" Path="Security">
+        <Select Path="Security">*[System[(EventID=4625)]]</Select>
+    </Query>
+</QueryList>
+"@
+
+# Expressão regular para extrair o endereço IP
+$ipPattern = '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+
+# Loop infinito para monitorar eventos de log de segurança
+while ($true) {
+    # Monitorar eventos de log de segurança
+    Get-WinEvent -FilterXml $queryXML -MaxEvents 10 -ErrorAction SilentlyContinue |
+    ForEach-Object {
+        $event = $_
+
+        # Extrair o texto do evento de log
+        $message = $event.Message
+
+        # Procurar por endereços IP no texto usando a expressão regular
+        $ipMatches = [regex]::Matches($message, $ipPattern)
+
+        # Exibir os endereços IP capturados, se disponíveis
+        foreach ($match in $ipMatches) {
+            $ip = $match.Value
+            Write-Host "Endereço IP: $ip"
+        }
+    }
+
+    # Aguardar 0.5 segundos antes da próxima verificação
+    Start-Sleep -Milliseconds 500
+}
